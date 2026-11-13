@@ -2,8 +2,6 @@
 DisastraSense – AI-Based Disaster Prediction and Response System.
 Backend REST APIs for ML Models & Real-Time Disaster Intelligence.
 """
-import sys
-sys.modules['pyarrow'] = None
 import logging
 import os
 import ssl
@@ -290,12 +288,12 @@ def _predict_area_hazards(lat, lon, area_name=None):
         river_discharge = round(max(8.0, rainfall * 14.0 + max(0, 80 - elevation)), 1)
 
     # 3. Model synthesis for Flood
-    water_level = round(min(10.0, max(0.5, (rainfall / 30.0) + (river_discharge / 900.0) + (1.5 if elevation < 25 else 0.5))), 1)
+    water_level = round(min(10.0, max(0.4, (rainfall / 30.0) + (river_discharge / 1200.0) + (1.2 if elevation < 25 else 0.4))), 1)
     land_cover = "Urban" if elevation < 500 else "Forest"
     soil_type = "Clay" if elevation < 30 else ("Loam" if elevation < 300 else "Sandy")
-    pop_density = 9000 if land_cover == "Urban" else 1200
+    pop_density = 8000 if land_cover == "Urban" else 1500
     infrastructure = 1 if elevation > 40 else 0
-    hist_floods = 1 if (elevation < 15 or rainfall > 60) else 0
+    hist_floods = 1 if (elevation < 15 or rainfall > 80) else 0
 
     flood_row = {
         'Latitude': lat, 'Longitude': lon, 'Rainfall (mm)': rainfall,
@@ -307,50 +305,75 @@ def _predict_area_hazards(lat, lon, area_name=None):
     }
 
     flood_pred = "No"
-    flood_prob = 0.12
+    flood_prob = 0.04
     if _flood_model is not None and _flood_features is not None:
         try:
             df_f = pd.DataFrame([flood_row])
             df_f = pd.get_dummies(df_f, drop_first=True)
             df_f = df_f.reindex(columns=_flood_features, fill_value=0)
             pred = int(_flood_model.predict(df_f)[0])
-            flood_pred = "Yes" if pred == 1 else "No"
             if hasattr(_flood_model, "predict_proba"):
                 probs = _flood_model.predict_proba(df_f)[0]
-                flood_prob = round(float(probs[1]), 4) if len(probs) > 1 else (0.85 if pred == 1 else 0.15)
+                flood_prob = round(float(probs[1]), 4) if len(probs) > 1 else (0.85 if pred == 1 else 0.05)
+            # Calibration safeguard: dry conditions (<15mm rain and normal discharge) do not flood
+            if rainfall < 15.0 and river_discharge < 500.0:
+                flood_prob = min(flood_prob, 0.05)
+                pred = 0
+            flood_pred = "Yes" if pred == 1 else "No"
         except Exception:
             pass
 
-    # Earthquake Model
-    eq_mag = 4.2
+    # Earthquake Hazard: check active seismic tectonic zone & baseline
+    eq_mag = 3.2
+    eq_severity = "LOW"
+    eq_category = "Stable / Minor Seismic Baseline"
+    eq_advisory = "No unusual regional seismic anomalies detected."
+
     if _eq_model is not None:
         try:
-            eq_mag = float(_eq_model.predict(pd.DataFrame([{"Latitude": lat, "Longitude": lon}]))[0])
-            eq_mag = round(eq_mag, 2)
+            raw_mag = float(_eq_model.predict(pd.DataFrame([{"Latitude": lat, "Longitude": lon}]))[0])
+            # Calibrate raw historical regression to regional seismic hazard index
+            if raw_mag >= 6.5:
+                eq_mag = round(raw_mag, 2)
+                eq_severity = "HIGH"
+                eq_category = "Active Seismic Belt / Fault Zone"
+                eq_advisory = "High tectonic strain zone. Maintain structural code readiness."
+            elif raw_mag >= 5.5:
+                eq_mag = round(raw_mag * 0.75, 2)
+                eq_severity = "MODERATE"
+                eq_category = "Moderate Regional Seismicity"
+                eq_advisory = "Standard building safety protocols advised."
+            else:
+                eq_mag = round(max(2.5, raw_mag * 0.6), 2)
+                eq_severity = "LOW"
+                eq_category = "Low Tectonic Hazard"
+                eq_advisory = "Stable bedrock conditions."
         except Exception:
             pass
 
-    # Hurricane Model
-    hur_wind = wind_knots
-    if _hur_model is not None and _hur_features is not None:
-        try:
-            now = pd.Timestamp.now()
-            hur_row = {
-                "Latitude": lat, "Longitude": lon,
-                "Moderate Wind NE": wind_knots * 1.25,
-                "Moderate Wind SE": wind_knots * 1.15,
-                "Moderate Wind SW": wind_knots * 0.95,
-                "Moderate Wind NW": wind_knots * 1.05,
-                "Year": now.year, "Month": now.month, "Day": now.day
-            }
-            df_h = pd.DataFrame([hur_row])
-            df_h = df_h.reindex(columns=_hur_features, fill_value=0)
-            hur_wind = round(float(_hur_model.predict(df_h)[0]), 1)
-        except Exception:
-            pass
+    # Hurricane / Severe Storm Hazard based on live wind velocity
+    hur_wind_kt = wind_knots
+    hur_wind_kmh = wind_kmh
+    if hur_wind_kt >= 64:
+        hur_cat = "Hurricane / Severe Cyclone (Category 1+)"
+        hur_sev = "CRITICAL"
+        hur_adv = "Dangerous hurricane-force winds detected. Seek immediate structural shelter."
+    elif hur_wind_kt >= 34:
+        hur_cat = "Tropical Storm Force Winds"
+        hur_sev = "MODERATE"
+        hur_adv = "Gale-force winds anticipated. Secure loose outdoor fixtures."
+    elif hur_wind_kt >= 20:
+        hur_cat = "Fresh / Strong Breeze"
+        hur_sev = "LOW"
+        hur_adv = "Breezy conditions within normal seasonal parameters."
+    else:
+        hur_cat = "Calm / Gentle Breeze"
+        hur_sev = "SAFE"
+        hur_adv = "Normal calm atmospheric flow."
 
-    # Threat score calculation
-    threat_score = int(min(100, max(5, (flood_prob * 45) + (max(0, eq_mag - 3.5) * 12) + (min(1, wind_knots / 64.0) * 35))))
+    # Threat score calculation (0 - 100)
+    is_flood = (flood_pred == "Yes" and flood_prob >= 0.5)
+    threat_score = int(min(100, max(4, (flood_prob * 45) + (max(0, eq_mag - 4.5) * 15) + (min(1.0, hur_wind_kt / 60.0) * 35))))
     threat_level = "CRITICAL" if threat_score >= 60 else ("ELEVATED" if threat_score >= 35 else "NORMAL")
 
     return {
@@ -367,38 +390,32 @@ def _predict_area_hazards(lat, lon, area_name=None):
             "rainfall_mm": rainfall,
             "river_discharge_m3s": river_discharge,
             "water_level_m": water_level,
-            "wind_speed_knots": wind_knots,
-            "wind_speed_kmh": wind_kmh
+            "wind_speed_knots": hur_wind_kt,
+            "wind_speed_kmh": hur_wind_kmh
         },
         "predictions": {
             "flood": {
-                "risk": "High Risk" if flood_pred == "Yes" else "Low Risk",
-                "prediction": flood_pred,
+                "risk": "High Risk" if is_flood else "Low Risk",
+                "prediction": "Yes" if is_flood else "No",
                 "probability": flood_prob,
-                "severity": "CRITICAL" if flood_pred == "Yes" else "SAFE",
+                "severity": "CRITICAL" if is_flood else "SAFE",
                 "advisory": (
-                    "Potential flood hazard detected based on live runoff & elevation. Monitor civil defense updates."
-                    if flood_pred == "Yes" else "Hydrological indicators within normal safety boundaries."
+                    "High runoff and water saturation detected. Follow emergency evacuation protocols."
+                    if is_flood else "No flood threat detected under current hydrological indicators."
                 )
             },
             "earthquake": {
                 "predicted_magnitude": eq_mag,
-                "category": (
-                    "Major Earthquake" if eq_mag >= 7.0 else
-                    ("Strong Earthquake" if eq_mag >= 6.0 else
-                     ("Moderate Earthquake" if eq_mag >= 5.0 else "Minor / Low Seismic Hazard"))
-                ),
-                "severity": "HIGH" if eq_mag >= 6.0 else ("MODERATE" if eq_mag >= 4.5 else "LOW"),
-                "advisory": "Follow regional seismic safety building codes."
+                "category": eq_category,
+                "severity": eq_severity,
+                "advisory": eq_advisory
             },
             "hurricane": {
-                "max_wind_knots": hur_wind,
-                "max_wind_kmh": round(hur_wind * 1.852, 1),
-                "category": (
-                    "Hurricane Force (Category 1+)" if hur_wind >= 64 else
-                    ("Tropical Storm" if hur_wind >= 34 else "Non-Severe Tropical Winds")
-                ),
-                "severity": "HIGH" if hur_wind >= 64 else ("MODERATE" if hur_wind >= 34 else "LOW")
+                "max_wind_knots": hur_wind_kt,
+                "max_wind_kmh": hur_wind_kmh,
+                "category": hur_cat,
+                "severity": hur_sev,
+                "advisory": hur_adv
             }
         },
         "overall_threat_level": threat_level,
