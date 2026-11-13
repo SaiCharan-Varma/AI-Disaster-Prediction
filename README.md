@@ -1,92 +1,105 @@
-# DisastraSense
+# DisastraSense – AI Disaster Prediction & Real-Time Hazard Intelligence
 
-**AI-based disaster prediction system** — predict floods, earthquakes, and hurricanes from your inputs.
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://python.org)
+[![Flask](https://img.shields.io/badge/Flask-3.x-green.svg)](https://flask.palletsprojects.com/)
+[![scikit-learn](https://img.shields.io/badge/scikit--learn-1.x-orange.svg)](https://scikit-learn.org/)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
----
-
-## Overview
-
-DisastraSense uses machine learning to forecast natural disasters. It provides:
-
-- **Flood risk prediction** from weather, river, and terrain data  
-- **Earthquake magnitude estimation** by location  
-- **Hurricane maximum wind prediction** from storm and wind data  
-
-The app runs as a **Flask web application** (home page → Get started → prediction tools).
+**DisastraSense** is an AI-powered disaster prediction and real-time hazard intelligence platform. It combines machine learning predictive models with live meteorological data from **Open-Meteo**, global seismic streams from the **USGS**, and **OpenStreetMap** geocoding to deliver actionable early warnings for floods, earthquakes, and hurricanes.
 
 ---
 
-## Features
+## 🚀 Key Features
 
-| Feature | Description |
-|--------|-------------|
-| **Flood prediction** | Input latitude, longitude, rainfall, temperature, humidity, river discharge, water level, elevation, land cover, soil type, population density, infrastructure, and historical floods → **Flood risk: Yes/No** |
-| **Earthquake prediction** | Input latitude and longitude → **Predicted magnitude** |
-| **Hurricane prediction** | Input location, wind quadrants (NE, SE, SW, NW), and date → **Predicted maximum wind (knots)** |
+### 1. 🌊 Flood Hazard Assessment
+- **Live Environmental Sync**: One-click sync with Open-Meteo to auto-fetch current temperature, humidity, 24h precipitation, elevation, and river discharge for any coordinates.
+- **Machine Learning Inference**: Random Forest classification model calculating flood probability (0–100%), hazard severity, and civil defense evacuation advisories.
+- **Topological & Social Context**: Evaluates soil absorption (clay, loam, sand), urban land cover, drainage resilience, and historical inundation.
+
+### 2. 🌋 Earthquake Magnitude Estimation & Live Stream
+- **Seismic Regression Model**: Forecasts expected Richter magnitude based on geographic and tectonic coordinates.
+- **Real-Time USGS Stream**: Fetches active earthquakes globally directly from the USGS Earthquake Hazards Program with magnitudes, focal depths, and tsunami warnings.
+
+### 3. 🌀 Hurricane Wind Speed & Classification
+- **Storm Physics Model**: Evaluates directional wind quadrants (NE, SE, SW, NW) and storm trajectories to forecast maximum sustained wind speeds.
+- **Saffir-Simpson Scale**: Automatically categorizes storms from Tropical Depressions up to Category 5 Catastrophic Hurricanes.
+
+### 4. ⚡ REST API Suite & Interactive Explorer
+- Full JSON REST endpoints for integration with emergency services and mobile applications.
+- In-browser interactive API console to test requests, view HTTP status codes, latency, and copy JSON payloads.
 
 ---
 
-## Tech stack
+## 📡 Live API Endpoints
 
-- **Backend:** Python, Flask  
-- **ML:** scikit-learn, pandas, joblib (Flood, Earthquake, Hurricane models)  
-- **Frontend:** HTML, CSS, JavaScript  
+All prediction endpoints support both `application/json` and `multipart/form-data`:
+
+| Endpoint | Method | Source | Description |
+| :--- | :---: | :--- | :--- |
+| `/api/predict/flood` | `POST` | Machine Learning | Evaluates environmental and meteorological parameters to predict flood probability and severity. |
+| `/api/predict/earthquake` | `POST` | Machine Learning | Estimates anticipated earthquake magnitude based on geographic coordinates. |
+| `/api/predict/hurricane` | `POST` | Machine Learning | Predicts maximum sustained wind speed (knots/kmh) and Saffir-Simpson category. |
+| `/api/weather` | `GET` | Open-Meteo API | Fetches live temperature, humidity, precipitation, elevation, and river discharge for any `lat` and `lon`. |
+| `/api/geocode` | `GET` | OpenStreetMap | Search any city or landmark worldwide (e.g. `?q=Tokyo`) to resolve coordinates. |
+| `/api/live/earthquakes` | `GET` | USGS Hazards | Real-time global earthquake stream with magnitude, depth, and tsunami flags. |
+| `/api/docs` | `GET` | OpenAPI Spec | Programmatic OpenAPI documentation for all available endpoints. |
 
 ---
 
-## Quick start
+## 🛠️ Quick Start Guide
 
-### 1. Clone and enter the project
-
+### 1. Clone the Repository
 ```bash
-git clone https://github.com/ranjeet229/AI-Disaster-Prediciton.git
-cd AI-Disaster-Prediciton
+git clone https://github.com/SaiCharan-Varma/AI-Disaster-Prediction.git
+cd AI-Disaster-Prediction
 ```
 
-### 2. Install dependencies
-
+### 2. Install Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. Create prediction models (first time only)
-
+### 3. Generate ML Models (First time only)
 ```bash
 python create_all_models.py
 ```
+*This trains and compiles the Flood, Earthquake, and Hurricane models.*
 
-This generates the Flood, Earthquake, and Hurricane models used by the app.
-
-### 4. Run the app
-
+### 4. Run the Server
 ```bash
 python app.py
 ```
 
-### 5. Open in browser
-
-Go to **http://127.0.0.1:5000**
-
-- **Home:** Smart Disaster Prediction → click **GET STARTED**  
-- **App:** Use the navbar dropdown to switch between Flood, Earthquake, and Hurricane prediction. Toggle **Light/Dark** theme as needed.
-
-Stop the server with `Ctrl+C`.
-
----
-
-## Project structure
-
-| Item | Purpose |
-|------|--------|
-| `app.py` | Flask app and prediction routes |
-| `create_all_models.py` | Train and save Flood, Earthquake, Hurricane models |
-| `templates/home.html` | Home page (DisastraSense landing) |
-| `templates/main.html` | App UI (prediction forms) |
-| `*.pkl` | Saved models (created by `create_all_models.py`) |
-| `requirements.txt` | Python dependencies |
+### 5. Open in Your Browser
+Open your browser and navigate to:
+```
+http://127.0.0.1:5000/
+```
+- **Live Disaster AI Suite & API Explorer**: `http://127.0.0.1:5000/` (or `/predict`)
+- **Multi-Panel Form View**: `http://127.0.0.1:5000/app`
+- **Landing Overview**: `http://127.0.0.1:5000/home`
+- **Interactive OpenAPI Documentation**: `http://127.0.0.1:5000/api/docs`
 
 ---
 
-## License
+## 📂 Project Structure
 
-See repository for license information.
+```text
+├── app.py                      # Flask REST API server & routing
+├── create_all_models.py        # Model training script (Flood, Earthquake, Hurricane)
+├── index.html                  # Live AI Command Center & API Explorer (served at /)
+├── templates/
+│   ├── index.html              # Template mirror for Flask rendering
+│   ├── main.html               # Multi-panel prediction dashboard (/app)
+│   └── home.html               # Landing overview (/home)
+├── plots/                      # Model performance metrics & confusion matrices
+├── atlantic.csv                # Historical hurricane dataset
+├── earthquake (1).csv          # Global seismic dataset
+├── requirements.txt            # Python package dependencies
+└── visualize_flood_metrics.py  # Model evaluation visualization script
+```
+
+---
+
+## 📄 License
+This project is open-source under the MIT License.

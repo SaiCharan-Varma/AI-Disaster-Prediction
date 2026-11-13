@@ -165,6 +165,14 @@
         <div class="form-card">
           <p class="form-title">Input parameters</p>
           <form id="form-flood" class="form-grid-3">
+            <div class="field" style="grid-column: span 3; display: flex; gap: 12px; align-items: center; margin-bottom: 6px; flex-wrap: wrap;">
+              <button type="button" id="btn-main-live-weather" class="btn" style="background: linear-gradient(135deg, #0284c7, #06b6d4); font-size: 0.82rem; padding: 8px 14px; display: inline-flex; align-items: center; gap: 6px;">
+                ☁️ Auto-Fetch Live Weather & Elevation (Open-Meteo API)
+              </button>
+              <a href="/" style="font-size: 0.82rem; color: var(--accent); font-weight: 600; text-decoration: none;">
+                ⚡ Switch to Full Live API Command Center →
+              </a>
+            </div>
             <div class="field"><label>Latitude</label><input type="text" name="Latitude" required placeholder="e.g. 25.5"></div>
             <div class="field"><label>Longitude</label><input type="text" name="Longitude" required placeholder="e.g. 85.2"></div>
             <div class="field locate-field">
@@ -409,6 +417,41 @@
     }
     bindLocationButton('flood-location-btn', 'form-flood', 'flood');
     bindLocationButton('hurricane-location-btn', 'form-hurricane', 'hurricane', { fillDateFromDevice: true });
+
+    var weatherBtn = document.getElementById('btn-main-live-weather');
+    if (weatherBtn) {
+      weatherBtn.addEventListener('click', async function() {
+        var lat = document.querySelector('#form-flood input[name="Latitude"]').value;
+        var lon = document.querySelector('#form-flood input[name="Longitude"]').value;
+        if (!lat || !lon) {
+          showResult('flood', 'Please enter Latitude and Longitude first (or click the GPS icon).', true);
+          return;
+        }
+        var origText = weatherBtn.innerHTML;
+        weatherBtn.innerHTML = 'Fetching Live Weather...';
+        weatherBtn.disabled = true;
+        try {
+          var res = await fetch('/api/weather?lat=' + encodeURIComponent(lat) + '&lon=' + encodeURIComponent(lon));
+          var data = await res.json();
+          if (data.status === 'success') {
+            var form = document.getElementById('form-flood');
+            if (data.rainfall != null) form.querySelector('input[name="Rainfall (mm)"]').value = data.rainfall;
+            if (data.temperature != null) form.querySelector('input[name="Temperature (°C)"]').value = data.temperature;
+            if (data.humidity != null) form.querySelector('input[name="Humidity (%)"]').value = data.humidity;
+            if (data.elevation != null) form.querySelector('input[name="Elevation (m)"]').value = data.elevation;
+            if (data.river_discharge != null) form.querySelector('input[name="River Discharge (m³/s)"]').value = data.river_discharge;
+            showResult('flood', 'Live Weather Synced: ' + data.temperature + '°C, ' + data.humidity + '% RH, ' + data.elevation + 'm elev');
+          } else {
+            showResult('flood', 'Weather API error: ' + (data.error || 'Failed to fetch'), true);
+          }
+        } catch (err) {
+          showResult('flood', 'API error: ' + err.message, true);
+        } finally {
+          weatherBtn.innerHTML = origText;
+          weatherBtn.disabled = false;
+        }
+      });
+    }
     document.getElementById('form-flood').addEventListener('submit', async function(e) {
       e.preventDefault();
       var res = await fetch('/api/predict/flood', { method: 'POST', body: new FormData(this) });

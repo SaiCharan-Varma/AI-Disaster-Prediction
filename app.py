@@ -68,18 +68,9 @@ def _fetch_external_json(url, timeout=7):
 
 # ----- Web View Routes -----
 @app.route("/")
-def index():
-    return render_template("home.html")
-
-
-@app.route("/app")
-def app_page():
-    return render_template("main.html")
-
-
 @app.route("/predict", methods=["GET", "POST"])
 @app.route("/index.html", methods=["GET", "POST"])
-def legacy_predict():
+def index():
     _load_models()
     features = [
         'Latitude', 'Longitude', 'Rainfall (mm)', 'Temperature (°C)',
@@ -104,6 +95,16 @@ def legacy_predict():
         except Exception as e:
             prediction = f"Error: {e}"
     return render_template("index.html", input_features=features, prediction=prediction)
+
+
+@app.route("/home")
+def home():
+    return render_template("home.html")
+
+
+@app.route("/app")
+def app_page():
+    return render_template("main.html")
 
 
 # ----- Live Real-Time Data APIs -----
