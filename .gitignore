@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+myenv/
+.env
+pyvenv.cfg
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Large model files (>100MB, exceeds GitHub limit; regenerate with python create_all_models.py)
+earthquake_model.pkl
+hurricane_model.pkl
+
+# Archives
+*.zip
